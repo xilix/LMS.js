@@ -41,6 +41,32 @@ describe("LMS", function () {
     });
   });
 
+  describe("#getOutput([string inputVariable])", function () {
+      var definition3 = {
+        "mu": {
+          "x": {"type": "TR", "value": 0.5},
+          "y":{"type": "constant", "value": 1}
+        },
+        "inputs"  : {"x":1,"y":2},
+        "outputs" : ["x"]
+      };
+
+      var lms3 = LMS.Factory(definition3);
+      //hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=0.5,muy=1
+      lms3.cycle({"x":1,"y":2},{"x":1});
+      //hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1,e=0.5,mux=0.125,muy=1
+      lms3.cycle({"x":2,"y":0},{"x":1.5});
+      //hx=[0.625],hy=[2,1]
+
+    it("get's the total output of the filter if no parameter is given", function () {
+      assert.deepEqual(lms3.getOutput(), 1);
+    });
+    it("get's the output of one of the filters input variable if a name of an input variable is given", function () {
+      assert.deepEqual(lms3.getOutput("x"), 1);
+      assert.deepEqual(lms3.getOutput("y"), 0);
+    });
+  });
+
   describe("#cycle(Object input, Object reference)", function () {
     var definition = {
       "mu": {"x": {"type": "constant", "value": 0.5}},
@@ -57,7 +83,7 @@ describe("LMS", function () {
     lms.cycle({"x": 1}, {"x": 1});//h=[0,0],    x=[1,0], y=0, e=1, mu=0.5
     lms.cycle({"x": 2}, {"x": 1});//h=[0.5,0],  x=[2,1], y=1, e=0, mu=0.5
     lms.cycle({"x": 0}, {"x":-1});//h=[0.5,0],  x=[0,2], y=0, e=-1,mu=0.5
-                                  //h=[0.5,-1]
+    //h=[0.5,-1]
     it("push data to the buffer", function () {
       assert.deepEqual(lms.getBuffer(), {"x":[0, 2]});
     });
@@ -65,14 +91,16 @@ describe("LMS", function () {
       assert.deepEqual(lms.getFilter(), {"x": [0.5,-1]});
     });
     it("computes the outpus of the filter", function () {
-      assert.deepEqual(lms.getOutput(), {"x": 0});
+      assert.deepEqual(lms.getOutput(), 0);
     });
     it("computes the filter error", function () {
-      assert.deepEqual(lms.getError(), -1);
+      assert.deepEqual(lms.getError(), {"x": -1});
     });
-    it.skip(
-      "allows a static mu that it will be multiplied for the number of filter coeficients", function () {
-      assert.equal(lms.getMu(), {"x": 0.5});
+    it("allows a static mu that it will be multiplied for the number of filter coeficients", function () {
+      assert.deepEqual(lms.getMu(), {"x": 0.5});
+    });
+    it("computes the filter output", function () {
+      assert.deepEqual(lms.getOutput(), 0);
     });
 
     it("allows a dynamic mu that is the trace of the input signal autocorrelation matrix", function () {
@@ -98,8 +126,8 @@ describe("LMS", function () {
 
       assert.deepEqual(lms2.getMu(), {"x":0.125});
       assert.deepEqual(lms2.getFilter(), {"x":[0.5,-0.25]});
+      assert.deepEqual(lms2.getOutput(), 0);
     });
-
 
     it("allows cycle in multipe inputs at the same time", function () {
       var definition3 = {
@@ -112,19 +140,56 @@ describe("LMS", function () {
       };
 
       var lms3 = LMS.Factory(definition3);
-      //hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=1,muy=1
+      //hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=0.5,muy=1
       lms3.cycle({"x":1,"y":2},{"x":1});
-      //hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=0.5,e=0.5,mux=0.125,muy=1
+      //hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1,e=0.5,mux=0.125,muy=1
       lms3.cycle({"x":2,"y":0},{"x":1.5});
       //hx=[0.625],hy=[2,1]
 
       assert.deepEqual(lms3.getMu(), {"x":0.125, "y": 1});
       assert.deepEqual(lms3.getFilter(), {"x":[0.625], "y":[2,1]});
+      assert.deepEqual(lms3.getOutput(), 1);
     });
+    it("allows cycle in multichannel mode", function () {
+      var definition3 = {
+        "mu": {
+          "x": {"type": "TR", "value": 0.5},
+          "y":{"type": "constant", "value": 1}
+        },
+        "inputs"  : {"x":1,"y":2},
+        "outputs" : ["x", "y"]
+      };
 
+      var lms3 = LMS.Factory(definition3);
+      // hx=[0],hy=[0,0],x=[1],y=[2,0],yx=0,yy=0,ex=2,mux=0.5,muy=1
+      lms3.cycle({"x":1,"y":2},{"x":1,"y":1});
+      // hx=[1],hy=[4,0],x=[2],y=[0,2],yx=2,yy=0,e=1.5,mux=0.125,muy=1
+      lms3.cycle({"x":2,"y":0},{"x":1.5,"y":2});
+      // hx=[0.875],hy=[4,-1]
+
+      assert.deepEqual(lms3.getMu(), {"x":0.125, "y": 1});
+      assert.deepEqual(lms3.getOutput(), 2);
+      assert.deepEqual(lms3.getFilter(), {"x":[0.875], "y":[4,-1]});
+    });
   });
-  describe.skip("#project()", function () {
-    it.skip("projects de prediction of the output for the next cycles to come", function () {
+
+  describe("#project()", function (x) {
+    it("get's the output of the current filter giving an input", function () {
+       var definition3 = {
+        "mu": {
+          "x": {"type": "TR", "value": 0.5},
+          "y":{"type": "constant", "value": 1}
+        },
+        "inputs"  : {"x":1,"y":2},
+        "outputs" : ["x"]
+      };
+
+      var lms3 = LMS.Factory(definition3);
+      //hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=0.5,muy=1
+      lms3.cycle({"x":1,"y":2},{"x":1});
+      //hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1
+      assert.deepEqual(lms3.project({"x":2, "y":0}), 1);
+      
     });
   });
 });

@@ -3,100 +3,140 @@ var LMS = (function (LMS) {
     var inp = define["inputs"];
     var out = define["outputs"];
     var mus = define["mu"];
-    var buffers = {}, filters = {}, mu = {}, y = {};
+    var buffers = {}, filters = {}, mu = {}, y = 0, outputs = {};
     var inputVars = [], nInVa = 0, outputVars = [], nOutVa = 0, inputsTr = {};
-    var i, j, va, keys, e;
+    var i, j, va, keys, e = {};
 
     this.length = 0;
-    keys = Object.keys(inp);
-    for (i = 0; i < keys.length; i += 1) {
-      for (j = 0; j < inp[keys[i]]; j += 1) {
-        if (buffers[keys[i]] === undefined) { buffers[keys[i]] = []; }
-        buffers[keys[i]].push(0);
 
-        if (filters[keys[i]] === undefined) { filters[keys[i]] = []; }
-        filters[keys[i]].push(0);
+    function __construct() {
+      keys = Object.keys(inp);
+      for (i = 0; i < keys.length; i += 1) {
+        for (j = 0; j < inp[keys[i]]; j += 1) {
+          if (buffers[keys[i]] === undefined) { buffers[keys[i]] = []; }
+          buffers[keys[i]].push(0);
+
+          if (filters[keys[i]] === undefined) { filters[keys[i]] = []; }
+          filters[keys[i]].push(0);
+        }
+        if (inputsTr[keys[i]] === undefined) { inputsTr[keys[i]] = []; }
+        inputsTr[keys[i]] = 0;
+
+        // Set de mu
+        if (mu[keys[i]] === undefined) { mu[keys[i]] = 0; }
+        if (mus === undefined || mus[keys[i]] === undefined) {
+          mu[keys[i]] = (function (vaNom) {
+            return function () { return 0.5 / inputsTr[vaNom]; }
+          })(keys[i]);
+        } else if (mus[keys[i]]["type"] === "TR") {
+          mu[keys[i]] = (function (vaNom, muVal) {
+            return function (debug) { 
+              return muVal / inputsTr[vaNom]; 
+            }
+          })(keys[i], mus[keys[i]]["value"]);
+        } else {
+          mu[keys[i]] = (function (muVal) {
+            return function () { return muVal; };
+          })(mus[keys[i]]["value"]);
+        }
+
+        inputVars.push(keys[i]);
       }
-      if (inputsTr[keys[i]] === undefined) { inputsTr[keys[i]] = []; }
-      inputsTr[keys[i]] = 0;
 
-      // Set de mu
-      if (mu[keys[i]] === undefined) { mu[keys[i]] = 0; }
-      if (mus === undefined || mus[keys[i]] === undefined) {
-        mu[keys[i]] = (function (vaNom) {
-          return function () { return 0.5 / inputsTr[vaNom]; }
-        })(keys[i]);
-      } else if (mus[keys[i]]["type"] === "TR") {
-        mu[keys[i]] = (function (vaNom, muVal) {
-          return function (debug) { 
-            return muVal / inputsTr[vaNom]; 
-          }
-        })(keys[i], mus[keys[i]]["value"]);
-      } else {
-        mu[keys[i]] = (function (muVal) {
-          return function () { return muVal; };
-        })(mus[keys[i]]["value"]);
+      for (i = 0; i < out.length; i += 1) {
+        if (y[out[i]] === undefined) { y[out[i]] = []; }
+        y[out[i]] = 0;
       }
+      outputVars = out;
 
-      inputVars.push(keys[i]);
+      nInVa = inputVars.length;   
+      nOutVa = outputVars.length;
     }
 
-    for (i = 0; i < out.length; i += 1) {
-      if (y[out[i]] === undefined) { y[out[i]] = []; }
-      y[out[i]] = 0;
-    }
-    outputVars = out;
-    
-    nInVa = inputVars.length;   
-    nOutVa = outputVars.length;
+    __construct();
+
     this.cycle = function (x, ref) {
-      var va, i, vaNom, outValue;
+      this.clean();
+      this.project(x);
+      this.train(ref);
 
+      return this;
+    };
+
+    this.clean = function () {
+      var i;
       // Output clean (in case of diferent outputs)
-      for (va = 0; va < nOutVa; va += 1) {
-        y[outputVars[va]] = 0;
+      for (i = 0; i < nInVa; i += 1) {
+        outputs[inputVars[i]] = 0;
       }
+      y = 0;
+      e = {};
+    };
+
+    this.project = function (x) {
+      var i, vaNom;
 
       // Inputs procesing
       for (i = 0; i < nInVa; i += 1) {
         vaNom = inputVars[i];
-
-        // Load the buffers and compute the variables autocorrelation
-        buffers[vaNom].unshift(x[vaNom]);
-        outValue = buffers[vaNom].pop();
-
-        // Computes the new input Trace for dinamic mu
-        inputsTr[vaNom] += x[vaNom] * x[vaNom];
-        inputsTr[vaNom] -= outValue * outValue;
-
-        // Compute the filter output
-        buffers[vaNom].forEach(function (input, ind) {
-          for (o = 0; o < nOutVa; o += 1) {
-            y[outputVars[o]] += input * filters[vaNom][ind];
-          }
-        });
+        computeTrace(vaNom, x[vaNom], pushInput(vaNom, x[vaNom]));
+        projectVar(vaNom, x[vaNom]);
       }
 
+      return y;
+    };
+
+    function pushInput(vaNom, x) {
+      // Load the buffers and compute the variables autocorrelation
+      buffers[vaNom].unshift(x);
+      return buffers[vaNom].pop();
+    }
+
+    function computeTrace(vaNom, x, outValue) {
+      // Computes the new input Trace for dinamic mu
+      inputsTr[vaNom] += x * x;
+      inputsTr[vaNom] -= outValue * outValue;
+    }
+
+    function projectVar(vaNom, x) {
+      var o;
+      // Compute the filter output
+      buffers[vaNom].forEach(function (input, ind) {
+        o = input * filters[vaNom][ind]; 
+        outputs[vaNom] += o;
+        y += o;
+      });
+      return y;
+    }
+
+    this.train = function (ref) {
+      var i, vaNom, o;
       // Get the error
-      e = 0;
       for (o = 0; o < nOutVa; o += 1) {
         vaNom = outputVars[o];
-        e += ref[vaNom] - y[outputVars[o]];
+        if (e[vaNom] === undefined) { e[vaNom] = 0; }
+        e[vaNom] += ref[vaNom] - y;
       }
       // Train the filter with the feedback of the error
       for (i = 0; i < nInVa; i += 1) {
         vaNom = inputVars[i];
         buffers[vaNom].forEach(function (input, ind) {
-          filters[vaNom][ind] += (mu[vaNom]() * e * input);
+          for (o = 0; o < nOutVa; o += 1) {
+            filters[vaNom][ind] += (mu[vaNom]() * e[outputVars[o]] * input);
+          }
         });
       }
-
-      return this;
     };
 
     this.getBuffer  = function () { return buffers; };
     this.getFilter  = function () { return filters; };
-    this.getOutput  = function () { return y; };
+    this.getOutput  = function (vaNom) { 
+      if (vaNom === undefined) {
+        return y;
+      } else {
+        return outputs[vaNom]; 
+      }
+    };
     this.getError   = function () { return e; };
     this.getMu      = function () { 
       var returnedMus = {}, i;
@@ -107,9 +147,53 @@ var LMS = (function (LMS) {
     };
   }
 
-  LMS.Factory = function (definition) {
+  LMS.WienerFilterFactory = function (definition) {
     return new WienerFilter(definition);
   };
+
+  LMS.PredictorFactory = function (definition) {
+    return new Predictor(definition);
+  };
+
+  function Predictor(defnition) {
+    var predictors = [], i, vas = Object.keys(definition["inputs"]),
+        nVas = vas.length, out = definition["output"], outInd,
+        predictions = {};
+    
+    for (i = 0; i < nVas; i += 1) {
+      definition["output"] = [vas[i]];
+      if (out === definition["output"]) {
+        outInd = i;
+      }
+      predictors.push(new WienerFilter(definition));
+    }
+
+    this.train = function (x, ref) {
+      for (i = 0; i < nVas; i += 1) {
+        predictors.cycle(x, ref); 
+      }
+
+      return this;
+    };
+
+    this.predict = function () {
+      predictions = {};
+
+      for (i = 0; i < nVas; i += 1) {
+        predictions[vas[i]] = predictors.getOutput()[vas[i]];
+      }
+
+      for (i = 0; i < nVas; i += 1) {
+        predictors.project(predictions);
+      }
+      
+      return predictions;
+    };
+
+    this.getPrediction = function () { return predictions; };
+    this.getPredictors = function () { return predictors; };
+  };
+
 
   return LMS;
 })({});

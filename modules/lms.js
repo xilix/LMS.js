@@ -71,6 +71,8 @@ var LMS = (function (LMS) {
       }
       y = 0;
       e = {};
+
+      return this;
     };
 
     this.project = function (x) {
@@ -85,17 +87,31 @@ var LMS = (function (LMS) {
 
       return y;
     };
+    
+    this.pushInputs = function (x) {
+      var i, vaNom;
+
+      // Inputs procesing
+      for (i = 0; i < nInVa; i += 1) {
+        vaNom = inputVars[i];
+        pushInput(vaNom, x[vaNom]);
+      }
+
+      return this;
+    }
 
     function pushInput(vaNom, x) {
       // Load the buffers and compute the variables autocorrelation
       buffers[vaNom].unshift(x);
       return buffers[vaNom].pop();
-    }
+    };
 
     function computeTrace(vaNom, x, outValue) {
       // Computes the new input Trace for dinamic mu
       inputsTr[vaNom] += x * x;
       inputsTr[vaNom] -= outValue * outValue;
+
+      return inputsTr[vaNom];
     }
 
     function projectVar(vaNom, x) {
@@ -106,6 +122,7 @@ var LMS = (function (LMS) {
         outputs[vaNom] += o;
         y += o;
       });
+
       return y;
     }
 
@@ -126,11 +143,13 @@ var LMS = (function (LMS) {
           }
         });
       }
+
+      return this;
     };
 
     this.getBuffer  = function () { return buffers; };
     this.getFilter  = function () { return filters; };
-    this.getOutput  = function (vaNom) { 
+    this.getOutput  = function (vaNom) {
       if (vaNom === undefined) {
         return y;
       } else {
@@ -155,7 +174,7 @@ var LMS = (function (LMS) {
     return new Predictor(definition);
   };
 
-  function Predictor(defnition) {
+  function Predictor(definition) {
     var predictors = [], i, vas = Object.keys(definition["inputs"]),
         nVas = vas.length, out = definition["output"], outInd,
         predictions = {};
@@ -165,26 +184,42 @@ var LMS = (function (LMS) {
       if (out === definition["output"]) {
         outInd = i;
       }
-      predictors.push(new WienerFilter(definition));
+      predictors[vas[i]] = new WienerFilter(definition);
     }
 
     this.train = function (x, ref) {
       for (i = 0; i < nVas; i += 1) {
-        predictors.cycle(x, ref); 
+        predictors[vas[i]].cycle(x, ref); 
       }
 
       return this;
     };
 
-    this.predict = function () {
+    this.predict = function (steps) {
+      var i, predictions = {};
+      if (steps === undefined) { steps = 1; }
+      for (i = 0; i < steps; i += 1) {
+        predictions = predictCycle();
+      }
+
+      return predictions;
+    }
+
+    function predictCycle() {
       predictions = {};
 
       for (i = 0; i < nVas; i += 1) {
-        predictions[vas[i]] = predictors.getOutput()[vas[i]];
+        predictions[vas[i]] = predictors[vas[i]].getOutput();
       }
 
       for (i = 0; i < nVas; i += 1) {
-        predictors.project(predictions);
+        predictors[vas[i]].clean();
+        //predictors[vas[i]].pushInputs(predictions);
+        predictors[vas[i]].project(predictions);
+      }
+
+      for (i = 0; i < nVas; i += 1) {
+        predictions[vas[i]] = predictors[vas[i]].getOutput();
       }
       
       return predictions;

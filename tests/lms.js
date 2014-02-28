@@ -50,7 +50,7 @@ describe("LMS", function () {
       var definition3 = {
         "mu": {
           "x": {"type": "TR", "value": 0.5},
-          "y":{"type": "constant", "value": 1}
+          "y": {"type": "constant", "value": 1}
         },
         "inputs"  : {"x":1,"y":2},
         "outputs" : ["x"]
@@ -62,7 +62,6 @@ describe("LMS", function () {
       //hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1,e=0.5,mux=0.125,muy=1
       lms3.cycle({"x":2,"y":0},{"x":1.5});
       //hx=[0.625],hy=[2,1]
-
       it("get's the total output of the filter if no parameter is given", function () {
         assert.deepEqual(lms3.getOutput(), 1);
       });

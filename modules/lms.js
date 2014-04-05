@@ -6,8 +6,10 @@ var LMS = (function (LMS) {
     var buffers = {}, filters = {}, mu = {}, y = 0, outputs = {};
     var inputVars = [], nInVa = 0, outputVars = [], nOutVa = 0, inputsTr = {};
     var i, j, va, keys, e = {};
+    var MAX_VAL = 99999;
 
     this.length = 0;
+    this.minTr = 0.001;
 
     function __construct() {
       keys = Object.keys(inp);
@@ -26,12 +28,16 @@ var LMS = (function (LMS) {
         if (mu[keys[i]] === undefined) { mu[keys[i]] = 0; }
         if (mus === undefined || mus[keys[i]] === undefined) {
           mu[keys[i]] = (function (vaNom) {
-            return function () { return 0.5 / inputsTr[vaNom]; }
+            return function () { 
+              return (inputsTr[vaNom] !== 0 ? 0.5 / inputsTr[vaNom] : MAX_VAL);
+            }
           })(keys[i]);
         } else if (mus[keys[i]]["type"] === "TR") {
           mu[keys[i]] = (function (vaNom, muVal) {
             return function (debug) { 
-              return muVal / inputsTr[vaNom]; 
+              return (
+                inputsTr[vaNom] !== 0 ? muVal / inputsTr[vaNom] : MAX_VAL
+              );
             }
           })(keys[i], mus[keys[i]]["value"]);
         } else {
@@ -111,6 +117,11 @@ var LMS = (function (LMS) {
       inputsTr[vaNom] += x * x;
       inputsTr[vaNom] -= outValue * outValue;
 
+      if (
+        inputsTr[vaNom] < this.minTr &&
+        inputsTr[vaNom] > -this.minTr
+      ) { inputsTr[vaNom] = this.minTr; }
+
       return inputsTr[vaNom];
     }
 
@@ -164,6 +175,7 @@ var LMS = (function (LMS) {
       }
       return returnedMus;
     };
+    this.getTrace   = function () { return inputsTr; };
   }
 
   LMS.WienerFilterFactory = function (definition) {

@@ -139,6 +139,7 @@ var LMS = (function (LMS) {
 
     this.train = function (ref) {
       var i, vaNom, o;
+
       // Get the error
       for (o = 0; o < nOutVa; o += 1) {
         vaNom = outputVars[o];
@@ -200,7 +201,7 @@ var LMS = (function (LMS) {
     }
 
     this.train = function (x, ref) {
-      for (i = 0; i < nVas; i += 1) {
+     for (i = 0; i < nVas; i += 1) {
         predictors[vas[i]].cycle(x, ref); 
       }
 
@@ -223,7 +224,6 @@ var LMS = (function (LMS) {
       for (i = 0; i < nVas; i += 1) {
         predictions[vas[i]] = predictors[vas[i]].getOutput();
       }
-
       for (i = 0; i < nVas; i += 1) {
         predictors[vas[i]].clean();
         //predictors[vas[i]].pushInputs(predictions);

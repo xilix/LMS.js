@@ -1,3 +1,4 @@
+var dates = [];
 var currencySymbol = "EUR=X";
 var data = {};
 data[currencySymbol] = [];
@@ -6,11 +7,13 @@ var YAHOO = {
   "Finance": {
     "CurrencyConverter": {
       "addConversionRates": function (d) {
-        var res = d.list.resources, i, iMax = res.length;
+        var res = d.list.resources, i, iMax = res.length, re;
 
         for (i = 0; i < iMax; i += 1) {
-          if (res[i].symbol == currencySymbol) {
-            data[currencySymbol][res[i].fields["date"]] = res[i].fields["price"];
+          re = res[i].resource.fields;
+          if (re["symbol"] == currencySymbol) {
+            dates.push(re["date"]);
+            data[currencySymbol][re["date"]] = re["price"];
           }
         }
       }
@@ -19,7 +22,7 @@ var YAHOO = {
 }
 
 var index = ["BNO", "^EIXIC", "^ESTOXX50"];
-var indexApp = ["BNO", "NASDAQ", "EUROSTX50"];
+var indexApp = ["BNO", "NASDAQ", "EUROSTOX"];
 var Quotes = {}, j = 0, jMax = index.length;
 
 for (j = 0; j < jMax; j += 1) {

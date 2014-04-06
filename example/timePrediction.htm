@@ -4,10 +4,51 @@
     <title>Time prediction of EUR/USD ratio</title>
     <script src="./data/dataWrapper.js"></script>
     <script src="./data/data.js"></script>
+    <script src="../modules/lms.js"></script>
   </head>
   <body>
+    <div id="output">
+    </div>
     <script language="JavaScript">
-      console.log(YAHOO);
+      var i = 0, iMax = dates.length;
+
+      // Predictor definition
+      var definition = {
+        "mu": {"EURUSD": {"type": "TR", "value": 0.25}},
+        "inputs": {"EURUSD": 5},
+        "outputs": ["EURUSD"]
+      };
+
+      // Getting predictor object from definition
+      var predictor = LMS.PredictorFactory(definition);
+
+      // Training predictor from data
+      // Tarining to use the past data to predict the today currency
+      // ratio
+      for (i = 1; i < dates.length - 5; i += 1) {
+        predictor.train(
+          // Past data
+          {
+            "EURUSD": data[currencySymbol][dates[i - 1]],
+          },
+          // Today's ratio
+          {"EURUSD": data[currencySymbol][dates[i]]}
+        );
+      }
+
+      // Now the predictor it have been trained. Let's see how it works
+      // with the data of the last 4 days:
+      var realRatio, predictedRatio, out = document.getElementById("output");
+      for (i = dates.length - 5; i < dates.length; i += 1) {
+        realRatio = data[currencySymbol][dates[i]];
+        predictedRatio = predictor.predict()["EURUSD"];
+        out.innerHTML = out.innerHTML + 
+        "<h4>" + dates[i] + "</h4><p>" +
+        "<b>Real ratio: </b>" + realRatio + "<br />" +
+        "<b>Predict ratio: </b>" + predictedRatio + "<br />" +
+        "<b>Error: </b>" + (2 * (realRatio - predictedRatio) / (parseFloat(realRatio) + parseFloat(predictedRatio))) + "<br />" +
+        "</p><hr />";
+      }
     </script>
   </body>
 </html>

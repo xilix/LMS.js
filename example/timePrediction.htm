@@ -5,12 +5,71 @@
     <script src="./data/dataWrapper.js"></script>
     <script src="./data/data.js"></script>
     <script src="../modules/lms.js"></script>
+    <style>
+      .data-table {
+        font-family: sans-serif;
+      }
+      .data-table th{
+        border: 1px #000 solid;
+        background-color: #555;
+        color: #FFF;
+        font-size: 12pt;
+      }
+      .data-table td{
+        border: 1px #000 solid;
+        color: #333;
+        font-size: 10pt;
+      }
+      .error-line {
+        fill: none;
+        stroke: darkgreen;
+        stroke-width: 1.5px;
+      }
+      .error-text {
+        color: darkgreen;
+        font-size: 10pt;
+        font-family: sans-serif;
+      }
+      .ratio-line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+      .ratio-text {
+        color: steelblue;
+        font-size: 10pt;
+        font-family: sans-serif;
+      }
+      .predict-line {
+        fill: none;
+        stroke: darkred;
+        stroke-width: 1.5px;
+      }
+      .predict-text {
+        color: darkred;
+        font-size: 10pt;
+        font-family: sans-serif;
+      }
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+        font-size: 8pt;
+        font-family: sans-serif;
+      }
+    </style>
   </head>
   <body>
+    <svg></svg>
     <div id="output">
     </div>
     <script language="JavaScript">
       var i = 0, iMax = dates.length;
+
+      var realRatio, predictedRatio
+        , ratios = [], predictions = [], errors = []
+        , out = document.getElementById("output"), str = out.innerHTML;
 
       // Predictor definition
       var definition = {
@@ -25,7 +84,9 @@
       // Training predictor from data
       // Tarining to use the past data to predict the today currency
       // ratio
-      for (i = 1; i < dates.length - 5; i += 1) {
+      for (i = 1; i < dates.length - 50; i += 1) {
+        realRatio = data[currencySymbol][dates[i]];
+
         predictor.train(
           // Past data
           {
@@ -34,21 +95,120 @@
           // Today's ratio
           {"EURUSD": data[currencySymbol][dates[i]]}
         );
+        predictedRatio = predictor.getPredictor("EURUSD").getOutput("EURUSD");
+        error = predictor.getPredictor("EURUSD").getError()["EURUSD"];
+
+        ratios.push({"ratio": realRatio, "date": dates[i]});
+        predictions.push({"ratio": predictedRatio, "date": dates[i]});
+        errors.push({"ratio": error, "date": dates[i]});
       }
 
       // Now the predictor it have been trained. Let's see how it works
       // with the data of the last 4 days:
-      var realRatio, predictedRatio, out = document.getElementById("output");
-      for (i = dates.length - 5; i < dates.length; i += 1) {
+
+      str = "<table class=\"data-table\">" +
+        "<tr><th>Date</th><th>Realratio</th>" + 
+        "<th>Prdicted ratio</th><th>Error</th></tr>";
+      for (i = dates.length - 50; i < dates.length; i += 1) {
         realRatio = data[currencySymbol][dates[i]];
         predictedRatio = predictor.predict()["EURUSD"];
-        out.innerHTML = out.innerHTML + 
-        "<h4>" + dates[i] + "</h4><p>" +
-        "<b>Real ratio: </b>" + realRatio + "<br />" +
-        "<b>Predict ratio: </b>" + predictedRatio + "<br />" +
-        "<b>Error: </b>" + (2 * (realRatio - predictedRatio) / (parseFloat(realRatio) + parseFloat(predictedRatio))) + "<br />" +
-        "</p><hr />";
+        error = (2 * (realRatio - predictedRatio) / (parseFloat(realRatio) + parseFloat(predictedRatio)));
+
+        ratios.push({"ratio": realRatio, "date": dates[i]});
+        predictions.push({"ratio": predictedRatio, "date": dates[i]});
+        errors.push({"ratio": error, "date": dates[i]});
+        
+        str = str + 
+        "<tr><td>" + dates[i] + "</td>" +
+        "<td>" + realRatio + "</td>" +
+        "<td>" + predictedRatio + "</td>" +
+        "<td>" + error + "</td></tr>";
       }
+      str += "</table>";
+
+      out.innerHTML = str;
+    </script>
+
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script language="JavaScript">
+      // Just a graph using D3.js
+
+      var width = 950, height= 400;
+      var parseDate = d3.time.format("%Y-%m-%d").parse; 
+      var x, y, xAxis, yAxis, line, lineError;
+
+      errors.forEach(function (d) {
+        d["date"] = parseDate(d["date"]);
+        d["ratio"] = d["ratio"];
+      });
+      ratios.forEach(function (d) {
+        d["date"] = parseDate(d["date"]);
+        d["ratio"] = d["ratio"];
+      });
+      predictions.forEach(function (d) {
+        d["date"] = parseDate(d["date"]);
+        d["ratio"] = d["ratio"];
+      });
+
+      x = d3.time.scale().range([0, width]);
+      y = d3.scale.linear().range([height, 0]);
+      e = d3.scale.linear().range([height, 0]);
+
+      xAxis = d3.svg.axis().scale(x).orient("bottom");
+      yAxis = d3.svg.axis().scale(y).orient("left");
+      eAxis = d3.svg.axis().scale(e).orient("right");
+      line = d3.svg.line()
+      .x(function (d) { return x(d["date"]); })
+      .y(function (d) { return y(d["ratio"]); });
+      lineError = d3.svg.line()
+      .x(function (d) { return x(d["date"]); })
+      .y(function (d) { return e(d["ratio"]); });
+
+      x.domain(d3.extent(errors, function (d) { return d["date"]; }));
+      y.domain(d3.extent(ratios, function (d) { return d["ratio"]; }));
+      e.domain(d3.extent(errors, function (d) { return d["ratio"]; }));
+
+      var svg = d3.select("body").select("svg")
+        .attr("width", width + 50)
+        .attr("height", height + 50)
+        .append("g");
+
+
+      svg.append("g").attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+      svg.append("g").attr("class", "axis")
+        .attr("transform", "translate(" + width + ", 0)").call(yAxis);
+      svg.append("g").attr("class", "axis").call(eAxis);
+
+      svg.append("path")
+        .datum(errors)
+        .attr("class", "error-line")
+        .attr("d", lineError);
+      svg.append("path")
+        .datum(predictions)
+        .attr("class", "predict-line")
+        .attr("d", line);
+      svg.append("path")
+        .datum(ratios)
+        .attr("class", "ratio-line")
+        .attr("d", line);
+
+        svg.append("text")
+          .attr("transform", "translate(" + (width - 350) + ", 50)")
+          .attr("class", "error-text")
+          .attr("fill", "darkgreen")
+          .text("Prediction Error");
+        svg.append("text")
+          .attr("transform", "translate(" + (width - 350) + ", 80)")
+          .attr("class", "ratio-text")
+          .attr("fill", "steelblue")
+          .text("EUR/USD exchange ratio");
+        svg.append("text")
+          .attr("transform", "translate(" + (width - 350) + ", 110)")
+          .attr("class", "predict-text")
+          .attr("fill", "darkred")
+          .text("EUR/USD predicted ratio");
     </script>
   </body>
 </html>

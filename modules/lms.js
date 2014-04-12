@@ -239,6 +239,7 @@ var LMS = (function (LMS) {
 
     this.getPrediction = function () { return predictions; };
     this.getPredictors = function () { return predictors; };
+    this.getPredictor = function (varNom) { return predictors[varNom]; };
   };
 
 

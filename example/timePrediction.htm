@@ -6,6 +6,10 @@
     <script src="./data/data.js"></script>
     <script src="../modules/lms.js"></script>
     <style>
+      p {
+        font-family: sans-serif;
+        font-size: 12pt;
+      }
       .data-table {
         font-family: sans-serif;
       }
@@ -61,6 +65,9 @@
     </style>
   </head>
   <body>
+    <p>
+    EUR/USD ratio. The red line is the predicted ratio. The predictor have been trained till 2014-03-07. After this moment all the data are predicted witouth taking account the real data.
+    </p>
     <svg></svg>
     <div id="output">
     </div>
@@ -74,7 +81,7 @@
       // Predictor definition
       var definition = {
         "mu": {"EURUSD": {"type": "TR", "value": 0.25}},
-        "inputs": {"EURUSD": 5},
+        "inputs": {"EURUSD": 10},
         "outputs": ["EURUSD"]
       };
 
@@ -84,7 +91,7 @@
       // Training predictor from data
       // Tarining to use the past data to predict the today currency
       // ratio
-      for (i = 1; i < dates.length - 50; i += 1) {
+      for (i = 1; i < dates.length - 30; i += 1) {
         realRatio = data[currencySymbol][dates[i]];
 
         predictor.train(
@@ -109,7 +116,7 @@
       str = "<table class=\"data-table\">" +
         "<tr><th>Date</th><th>Realratio</th>" + 
         "<th>Prdicted ratio</th><th>Error</th></tr>";
-      for (i = dates.length - 50; i < dates.length; i += 1) {
+      for (i = dates.length - 30; i < dates.length; i += 1) {
         realRatio = data[currencySymbol][dates[i]];
         predictedRatio = predictor.predict()["EURUSD"];
         error = (2 * (realRatio - predictedRatio) / (parseFloat(realRatio) + parseFloat(predictedRatio)));
@@ -174,8 +181,9 @@
         .append("g");
 
 
-      svg.append("g").attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
+      svg.append("g").attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis).attr("font-size", 10);
 
       svg.append("g").attr("class", "axis")
         .attr("transform", "translate(" + width + ", 0)").call(yAxis);

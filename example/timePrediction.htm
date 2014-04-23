@@ -82,7 +82,6 @@
       var definition = {
         "mu": {"EURUSD": {"type": "TR", "value": 0.25}},
         "inputs": {"EURUSD": 10},
-        "outputs": ["EURUSD"]
       };
 
       // Getting predictor object from definition
@@ -102,13 +101,15 @@
           // Today's ratio
           {"EURUSD": data[currencySymbol][dates[i]]}
         );
-        predictedRatio = predictor.getPredictor("EURUSD").getOutput("EURUSD");
-        error = predictor.getPredictor("EURUSD").getError()["EURUSD"];
+        predictedRatio = predictor.getPredictor("EURUSD").output;
+
+        error = predictor.getPredictor("EURUSD").errors["EURUSD"];
 
         ratios.push({"ratio": realRatio, "date": dates[i]});
         predictions.push({"ratio": predictedRatio, "date": dates[i]});
         errors.push({"ratio": error, "date": dates[i]});
       }
+      console.log(predictor.getPredictor("EURUSD").filters);
 
       // Now the predictor it have been trained. Let's see how it works
       // with the data of the last 4 days:
@@ -124,7 +125,7 @@
         ratios.push({"ratio": realRatio, "date": dates[i]});
         predictions.push({"ratio": predictedRatio, "date": dates[i]});
         errors.push({"ratio": error, "date": dates[i]});
-        
+
         str = str + 
         "<tr><td>" + dates[i] + "</td>" +
         "<td>" + realRatio + "</td>" +

@@ -4,3 +4,6 @@ Least Mean Square adaptative filter impementation is a common algorithm used in 
 
 Documentation Work in progress. More to come. Visit tests to know more about the API.
 You can also try "make docs"
+
+
+There are 2 examples showing how to use this libray. One is for node (app.js) and the other one is to use it inside a web browser (example/timePrediction.htm)

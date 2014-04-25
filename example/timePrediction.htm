@@ -72,7 +72,7 @@
     <div id="output">
     </div>
     <script language="JavaScript">
-      var i = 0, iMax = dates.length;
+      var i = 0, j = 0, iMax = dates.length;
 
       var realRatio, predictedRatio
         , ratios = [], predictions = [], errors = []
@@ -81,7 +81,7 @@
       // Predictor definition
       var definition = {
         "mu": {"EURUSD": {"type": "TR", "value": 0.25}},
-        "inputs": {"EURUSD": 10},
+        "inputs": {"EURUSD": 30},
       };
 
       // Getting predictor object from definition
@@ -90,8 +90,13 @@
       // Training predictor from data
       // Tarining to use the past data to predict the today currency
       // ratio
-      for (i = 1; i < dates.length - 30; i += 1) {
-        realRatio = data[currencySymbol][dates[i]];
+      for (i = 1; i < dates.length - 95; i += 1) {
+        //realRatio = data[currencySymbol][dates[i]];
+
+        realRatio = 0;
+        for (j = 0; j < 10; j++) {
+          realRatio += data[currencySymbol][dates[i + j]] / 10;
+        }
 
         predictor.train(
           // Past data
@@ -99,17 +104,17 @@
             "EURUSD": data[currencySymbol][dates[i - 1]],
           },
           // Today's ratio
-          {"EURUSD": data[currencySymbol][dates[i]]}
+          {"EURUSD": realRatio}
         );
         predictedRatio = predictor.getPredictor("EURUSD").output;
 
         error = predictor.getPredictor("EURUSD").errors["EURUSD"];
 
+        realRatio = data[currencySymbol][dates[i]];
         ratios.push({"ratio": realRatio, "date": dates[i]});
         predictions.push({"ratio": predictedRatio, "date": dates[i]});
         errors.push({"ratio": error, "date": dates[i]});
       }
-      console.log(predictor.getPredictor("EURUSD").filters);
 
       // Now the predictor it have been trained. Let's see how it works
       // with the data of the last 4 days:
@@ -117,10 +122,11 @@
       str = "<table class=\"data-table\">" +
         "<tr><th>Date</th><th>Realratio</th>" + 
         "<th>Prdicted ratio</th><th>Error</th></tr>";
-      for (i = dates.length - 30; i < dates.length; i += 1) {
+      for (i = dates.length - 95; i < dates.length - 10; i += 1) {
         realRatio = data[currencySymbol][dates[i]];
         predictedRatio = predictor.predict()["EURUSD"];
         error = (2 * (realRatio - predictedRatio) / (parseFloat(realRatio) + parseFloat(predictedRatio)));
+
 
         ratios.push({"ratio": realRatio, "date": dates[i]});
         predictions.push({"ratio": predictedRatio, "date": dates[i]});

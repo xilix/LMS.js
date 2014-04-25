@@ -1,5 +1,5 @@
 var assert = require("assert");
-var LMS = require("../modules/lms.js");
+var LMS = require("../lib/lms.js");
 
 describe("LMS", function () {
   console.log("Implementation of an adaptative filter");

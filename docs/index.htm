@@ -1,0 +1,164 @@
+Implementation of an adaptative filter
+using the LMS algorithm
+    <section class="suite">
+      <h1>LMS</h1>
+      <dl>
+        <section class="suite">
+          <h1>LMS.WienerFilterFactory(Object definition)</h1>
+          <dl>
+            <dt>Implements a Wiener adaptative filter using the LMS algorithm</dt>
+            <dd><pre><code>assert.ok(true);</code></pre></dd>
+            <section class="suite">
+              <h1>#__construct(Object definition)</h1>
+              <dl>
+                <dt>set the size of the filter</dt>
+                <dd><pre><code>assert.deepEqual(lms.buffers.x.length, 3);</code></pre></dd>
+                <dt>initalize the buffer to a 0 array</dt>
+                <dd><pre><code>assert.deepEqual(lms.buffers, {&quot;x&quot;: [0, 0, 0]});</code></pre></dd>
+                <dt>initalize the filter to a 0 array</dt>
+                <dd><pre><code>assert.deepEqual(lms.filters, {&quot;x&quot;: [0, 0, 0]});</code></pre></dd>
+                <dt>set the size of the filter</dt>
+                <dd><pre><code>var buffers = lms2.buffers;
+assert.equal(buffers.x.length, 3);
+assert.equal(buffers.y.length, 2);</code></pre></dd>
+                <dt>initalize the buffer to a 0 array</dt>
+                <dd><pre><code>assert.deepEqual(lms2.buffers, {&quot;x&quot;: [0, 0, 0], &quot;y&quot;: [0, 0]});</code></pre></dd>
+                <dt>initalize the filter to a 0 array</dt>
+                <dd><pre><code>assert.deepEqual(lms2.filters, {&quot;x&quot;: [0, 0, 0], &quot;y&quot;: [0, 0]});</code></pre></dd>
+              </dl>
+            </section>
+            <section class="suite">
+              <h1>#getOutput([string inputVariable])</h1>
+              <dl>
+                <dt>get's the total output of the filter if no parameter is given</dt>
+                <dd><pre><code>assert.deepEqual(lms.output, 1);</code></pre></dd>
+              </dl>
+            </section>
+            <section class="suite">
+              <h1>#cycle(Object input, Object reference)</h1>
+              <dl>
+                <dt>push data to the buffer</dt>
+                <dd><pre><code>assert.deepEqual(lms.buffers, {&quot;x&quot;:[0, 2]});</code></pre></dd>
+                <dt>computes the filter at every cycle</dt>
+                <dd><pre><code>assert.deepEqual(lms.filters, {&quot;x&quot;: [0.5,-1]});</code></pre></dd>
+                <dt>computes the outpus of the filter</dt>
+                <dd><pre><code>assert.deepEqual(lms.output, 0);</code></pre></dd>
+                <dt>computes the filter error</dt>
+                <dd><pre><code>assert.deepEqual(lms.errors, {&quot;x&quot;: -1});</code></pre></dd>
+                <dt>allows a static mu that it will be multiplied for the number of filter coeficients</dt>
+                <dd><pre><code>assert.deepEqual(lms.getMu(), {&quot;x&quot;: 0.5});</code></pre></dd>
+                <dt>allows a dynamic mu that is the trace of the input signal autocorrelation matrix</dt>
+                <dd><pre><code>var definition2 = {
+  &quot;mu&quot;: {&quot;x&quot;: {&quot;type&quot;: &quot;TR&quot;, &quot;value&quot;: 0.5}},
+  &quot;inputs&quot;  : {&quot;x&quot;:2},
+  &quot;outputs&quot; : [&quot;x&quot;]
+};
+
+var lms2 = LMS.WienerFilterFactory(definition2);
+//Senyal real:
+//h=[1, -1];
+//1 =&gt; 1*1 - 1*0 = 1
+//2 =&gt; 1*2 - 1*1 = 1
+//0 =&gt; 1*0 - 1*2 = -1
+//h=[0,0],    x=[1,0], y=0,  e=1,   Tr=1, mu=0.5
+lms2.cycle({&quot;x&quot;: 1}, {&quot;x&quot;: 1});
+//h=[0.5,0],  x=[2,1], y=1,  e=0,   Tr=5, mu=0.1
+lms2.cycle({&quot;x&quot;: 2}, {&quot;x&quot;: 1});
+//h=[0.5,0],x=[0,2], y=0, e=-1,Tr=4, mu=0.125
+lms2.cycle({&quot;x&quot;: 0}, {&quot;x&quot;:-1});
+//h=[0.5,-0.25]
+
+assert.deepEqual(lms2.getMu(), {&quot;x&quot;:0.125});
+assert.deepEqual(lms2.filters, {&quot;x&quot;:[0.5,-0.25]});
+assert.deepEqual(lms2.output, 0);</code></pre></dd>
+                <dt>allows cycle in multipe inputs at the same time</dt>
+                <dd><pre><code>var definition3 = {
+  &quot;mu&quot;: {
+    &quot;x&quot;: {&quot;type&quot;: &quot;TR&quot;, &quot;value&quot;: 0.5},
+    &quot;y&quot;:{&quot;type&quot;: &quot;constant&quot;, &quot;value&quot;: 1}
+  },
+  &quot;inputs&quot;  : {&quot;x&quot;:1,&quot;y&quot;:2},
+  &quot;outputs&quot; : [&quot;x&quot;]
+};
+
+var lms3 = LMS.WienerFilterFactory(definition3);
+//hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=0.5,muy=1
+lms3.cycle({&quot;x&quot;:1,&quot;y&quot;:2},{&quot;x&quot;:1});
+//hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1,e=0.5,mux=0.125,muy=1
+lms3.cycle({&quot;x&quot;:2,&quot;y&quot;:0},{&quot;x&quot;:1.5});
+//hx=[0.625],hy=[2,1]
+
+assert.deepEqual(lms3.getMu(), {&quot;x&quot;:0.125, &quot;y&quot;: 1});
+assert.deepEqual(lms3.filters, {&quot;x&quot;:[0.625], &quot;y&quot;:[2,1]});
+assert.deepEqual(lms3.output, 1);</code></pre></dd>
+                <dt>allows cycle in multichannel mode</dt>
+                <dd><pre><code>var definition3 = {
+  &quot;mu&quot;: {
+    &quot;x&quot;: {&quot;type&quot;: &quot;TR&quot;, &quot;value&quot;: 0.5},
+    &quot;y&quot;:{&quot;type&quot;: &quot;constant&quot;, &quot;value&quot;: 1}
+  },
+  &quot;inputs&quot;  : {&quot;x&quot;:1,&quot;y&quot;:2},
+  &quot;outputs&quot; : [&quot;x&quot;, &quot;y&quot;]
+};
+
+var lms3 = LMS.WienerFilterFactory(definition3);
+// hx=[0],hy=[0,0],x=[1],y=[2,0],yx=0,yy=0,ex=2,mux=0.5,muy=1
+lms3.cycle({&quot;x&quot;:1,&quot;y&quot;:2},{&quot;x&quot;:1,&quot;y&quot;:1});
+// hx=[1],hy=[4,0],x=[2],y=[0,2],yx=2,yy=0,e=1.5,mux=0.125,muy=1
+lms3.cycle({&quot;x&quot;:2,&quot;y&quot;:0},{&quot;x&quot;:1.5,&quot;y&quot;:2});
+// hx=[0.875],hy=[4,-1]
+
+assert.deepEqual(lms3.getMu(), {&quot;x&quot;:0.125, &quot;y&quot;: 1});
+assert.deepEqual(lms3.output, 2);
+assert.deepEqual(lms3.filters, {&quot;x&quot;:[0.875], &quot;y&quot;:[4,-1]});</code></pre></dd>
+              </dl>
+            </section>
+            <section class="suite">
+              <h1>#project()</h1>
+              <dl>
+                <dt>get's the output of the current filter giving an input</dt>
+                <dd><pre><code>var definition3 = {
+  &quot;mu&quot;: {
+    &quot;x&quot;: {&quot;type&quot;: &quot;TR&quot;, &quot;value&quot;: 0.5},
+    &quot;y&quot;:{&quot;type&quot;: &quot;constant&quot;, &quot;value&quot;: 1}
+  },
+  &quot;inputs&quot;  : {&quot;x&quot;:1,&quot;y&quot;:2},
+  &quot;outputs&quot; : [&quot;x&quot;]
+};
+
+var lms3 = LMS.WienerFilterFactory(definition3);
+//hx=[0],hy=[0,0],x=[1],y=[2,0],y=0,e=1,mux=0.5,muy=1
+lms3.cycle({&quot;x&quot;:1,&quot;y&quot;:2},{&quot;x&quot;:1});
+//hx=[0.5],hy=[2,0],x=[2],y=[0,2],y=1
+assert.deepEqual(lms3.project({&quot;x&quot;: [2], &quot;y&quot;: [0.5, 3]}), 2);</code></pre></dd>
+              </dl>
+            </section>
+          </dl>
+        </section>
+        <section class="suite">
+          <h1>LMS.PredictorFactory(Object definition)</h1>
+          <dl>
+            <dt>Implements a linear predictor using a wiener adaptatie filter and the LMS algorithm</dt>
+            <dd><pre><code>assert.ok(true);</code></pre></dd>
+            <section class="suite">
+              <h1>#train(Object input, Object reference)</h1>
+              <dl>
+                <dt>trains the preidctor by using an known input and output</dt>
+                <dd><pre><code>var predictors = lms.getPredictors();
+assert.deepEqual(predictors[&quot;x&quot;].filters,{&quot;x&quot;:[-0.25, -1.5]});</code></pre></dd>
+              </dl>
+            </section>
+            <section class="suite">
+              <h1>#predict([int step])</h1>
+              <dl>
+                <dt>predict the next cycle of data to come</dt>
+                <dd><pre><code>//h=[-0.25, -1.5], x=[0.5, 1], y=-1.625
+assert.deepEqual(lms.predict(), {&quot;x&quot;: -1.625});
+//h=[-0.25, -1.5], x=[-1.625, 0.5], y=-0.34375
+assert.deepEqual(lms.predict(), {&quot;x&quot;: -0.34375});</code></pre></dd>
+              </dl>
+            </section>
+          </dl>
+        </section>
+      </dl>
+    </section>
